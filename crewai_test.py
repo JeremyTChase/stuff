@@ -1,10 +1,11 @@
 import os
 import platform
-import webbrowser
+import subprocess
 import requests
 import re
 import json
-import subprocess
+import shutil
+import webbrowser
 from bs4 import BeautifulSoup
 from crewai import Agent, Task, Crew, Process
 
@@ -115,14 +116,49 @@ class BrowserAgent(Agent):
         if video_url:
             try:
                 if platform.system() == 'Windows':
+                    print("Attempting to open URL with cmd.exe")
                     subprocess.run(['cmd.exe', '/c', 'start', video_url], check=True)
+                    print(f"Opened URL with cmd.exe: {video_url}")
+                elif 'WSL_INTEROP' in os.environ:
+                    print("Attempting to open URL with Windows browser from WSL using PowerShell")
+                    self.open_with_powershell(video_url)
                 else:
-                    webbrowser.open(video_url, new=2)  # 2 means: open in a new tab, if possible
-                print(f"Opened URL: {video_url}")
-            except Exception as e:
+                    # Check for common browsers and use the first one found
+                    browsers = ['google-chrome', 'firefox', 'brave-browser']
+                    browser_path = next((shutil.which(browser) for browser in browsers if shutil.which(browser)), None)
+                    
+                    if browser_path:
+                        print(f"Attempting to open URL with {browser_path}")
+                        subprocess.run([browser_path, video_url], check=True)
+                        print(f"Opened URL with {browser_path}: {video_url}")
+                    else:
+                        print("Attempting to open URL with xdg-open")
+                        try:
+                            subprocess.run(['xdg-open', video_url], check=True)
+                            print(f"Opened URL with xdg-open: {video_url}")
+                        except subprocess.CalledProcessError as e:
+                            print(f"xdg-open failed: {e}")
+                            print("Attempting to open URL with webbrowser.open")
+                            webbrowser.open(video_url, new=2)
+                            print(f"Opened URL with webbrowser.open: {video_url}")
+            except subprocess.CalledProcessError as e:
                 print(f"Failed to open URL: {e}")
+                print("Attempting to open URL with webbrowser.open as last resort")
+                webbrowser.open(video_url, new=2)
+                print(f"Opened URL with webbrowser.open: {video_url}")
         else:
             print("No valid video URL to open.")
+
+    def open_with_powershell(self, url):
+        try:
+            powershell_command = f'Start-Process "{url}"'
+            subprocess.run(['powershell.exe', '-Command', powershell_command], check=True)
+            print(f"Opened URL with PowerShell: {url}")
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to open URL with PowerShell: {e}")
+            print("Attempting to open URL with webbrowser.open as last resort")
+            webbrowser.open(url, new=2)
+            print(f"Opened URL with webbrowser.open: {url}")
 
 # Define the task
 class PlayRickAstleySong(Task):
