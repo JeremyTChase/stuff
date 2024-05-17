@@ -1,12 +1,13 @@
 import os
-import threading
 from crewai import Agent, Crew, Task, Process
 from langchain_openai import ChatOpenAI
 from langchain_community.tools.graphql.tool import BaseGraphQLTool
+from gql import Client, gql
+from gql.transport.requests import RequestsHTTPTransport
 
+# Set the API keys
+os.environ["OPENAI_API_KEY"] = "your_openai_api_key"  # Replace with your actual OpenAI API key
 
-# Set the OpenAI API key
-os.environ["OPENAI_API_KEY"] = "NA"
 
 # Initialize the LLM
 llm = ChatOpenAI(
@@ -14,9 +15,11 @@ llm = ChatOpenAI(
     base_url="http://localhost:11434/v1"
 )
 
+
 # Define the GraphQL wrapper as a dictionary
 graphql_wrapper = {
     "graphql_endpoint": 'https://main--spacex-l4uc6p.apollographos.net/graphql'
+
 }
 
 # Initialize the GraphQL tool
@@ -37,7 +40,7 @@ graphql_query_agent = Agent(
 # Define the User Interface Agent
 user_interface_agent = Agent(
     role='User Interface',
-    goal='Interact with the user and gather input, to satisfy their request: {inputs}',
+    goal='Interact with the user and gather input',
     verbose=True,
     memory=True,
     backstory='A friendly interface to gather user input.',
@@ -49,7 +52,7 @@ user_interface_agent = Agent(
 # Define the task for querying GraphQL
 query_task = Task(
     description='Execute a GraphQL query',
-    agent=graphql_query_agent,
+    agent=graphql_query_agent,  # Corrected attribute name
     expected_output='should receive a well-formed GraphQL response',
     required_tools=['graphql_tool']
 )
@@ -57,7 +60,7 @@ query_task = Task(
 # Define the task for user interaction
 user_task = Task(
     description='Gather user input for GraphQL query',
-    agent=user_interface_agent,
+    agent=user_interface_agent,  # Corrected attribute name
     expected_output='Interpret the GraphQL response into natural language'
 )
 
@@ -105,6 +108,3 @@ try:
     print(result)
 except Exception as e:
     print(f"An error occurred: {e}")
-
-# Access and print the task output
-print(f"Task Output: {task.output}")
