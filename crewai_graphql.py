@@ -8,23 +8,18 @@ from gql.transport.requests import RequestsHTTPTransport
 # Set the API keys
 os.environ["OPENAI_API_KEY"] = "your_openai_api_key"  # Replace with your actual OpenAI API key
 
+
 # Initialize the LLM
 llm = ChatOpenAI(
     model="llama3:8b",
     base_url="http://localhost:11434/v1"
 )
 
-# Define the GraphQL client
-transport = RequestsHTTPTransport(
-    url='https://api.spacex.land/graphql/',
-    verify=True,
-    retries=3,
-)
-client = Client(transport=transport, fetch_schema_from_transport=True)
 
 # Define the GraphQL wrapper as a dictionary
 graphql_wrapper = {
-    "graphql_endpoint": 'https://api.spacex.land/graphql/'
+    "graphql_endpoint": 'https://main--spacex-l4uc6p.apollographos.net/graphql'
+
 }
 
 # Initialize the GraphQL tool
@@ -76,11 +71,40 @@ crew = Crew(
     process=Process.sequential,  # Execute tasks sequentially
     memory=True,
     cache=True,
-    max_rpm=5,
-    share_crew=True
+    max_rpm=100,
+    share_crew=False         
 )
 
-# Execute the crew's process
-if __name__ == "__main__":
-    result = crew.kickoff(inputs={'topic': 'AI in healthcare'})
+# Properly manage threads
+def main():
+    # Define a specific GraphQL query
+    query = """
+    query {
+      launchesPast(limit: 1) {
+        mission_name
+        launch_date_utc
+        launch_site {
+          site_name_long
+        }
+        links {
+          article_link
+          video_link
+        }
+        rocket {
+          rocket_name
+        }
+      }
+    }
+    """
+    
+    # Execute the query using the GraphQL tool
+    result = graphql_tool.invoke(query)
     print(result)
+
+# Kick off the crew and print the result
+try:
+    result = crew.kickoff()
+    print("######################")
+    print(result)
+except Exception as e:
+    print(f"An error occurred: {e}")
