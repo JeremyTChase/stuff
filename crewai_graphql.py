@@ -1,83 +1,110 @@
-import crewai
-import requests
-from crewai import Task
+import os
+import threading
+from crewai import Agent, Crew, Task, Process
+from langchain_openai import ChatOpenAI
+from langchain_community.tools.graphql.tool import BaseGraphQLTool
 
-class GraphQLAgent(crewai.Agent):
-    def __init__(self, name, api_url, headers=None):
-        super().__init__(name)
-        self.api_url = api_url
-        self.headers = headers if headers else {}
 
-    def query(self, query, variables=None):
-        response = requests.post(
-            self.api_url,
-            json={'query': query, 'variables': variables},
-            headers=self.headers
-        )
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise Exception(f"Query failed with status code {response.status_code}")
+# Set the OpenAI API key
+os.environ["OPENAI_API_KEY"] = "NA"
 
-class LaunchesAgent(GraphQLAgent):
-    def __init__(self, api_url, headers=None):
-        super().__init__("LaunchesAgent", api_url, headers)
-    
-    def get_launches(self, limit):
-        query = """
-        query GetLaunches($limit: Int) {
-            launchesPast(limit: $limit) {
-                mission_name
-                launch_date_utc
-                rocket {
-                    rocket_name
-                }
-                launch_site {
-                    site_name_long
-                }
-            }
+# Initialize the LLM
+llm = ChatOpenAI(
+    model="llama3:8b",
+    base_url="http://localhost:11434/v1"
+)
+
+# Define the GraphQL wrapper as a dictionary
+graphql_wrapper = {
+    "graphql_endpoint": 'https://main--spacex-l4uc6p.apollographos.net/graphql'
+}
+
+# Initialize the GraphQL tool
+graphql_tool = BaseGraphQLTool(graphql_wrapper=graphql_wrapper)
+
+# Define the GraphQL Query Agent
+graphql_query_agent = Agent(
+    role='GraphQL Query Handler',
+    goal='Execute GraphQL queries and return results',
+    verbose=True,
+    memory=True,
+    backstory='An expert in handling GraphQL queries.',
+    tools=[graphql_tool],
+    allow_delegation=True,
+    llm=llm
+)
+
+# Define the User Interface Agent
+user_interface_agent = Agent(
+    role='User Interface',
+    goal='Interact with the user and gather input, to satisfy their request: {inputs}',
+    verbose=True,
+    memory=True,
+    backstory='A friendly interface to gather user input.',
+    tools=[],
+    allow_delegation=False,
+    llm=llm
+)
+
+# Define the task for querying GraphQL
+query_task = Task(
+    description='Execute a GraphQL query',
+    agent=graphql_query_agent,
+    expected_output='should receive a well-formed GraphQL response',
+    required_tools=['graphql_tool']
+)
+
+# Define the task for user interaction
+user_task = Task(
+    description='Gather user input for GraphQL query',
+    agent=user_interface_agent,
+    expected_output='Interpret the GraphQL response into natural language'
+)
+
+# Create the crew
+crew = Crew(
+    agents=[graphql_query_agent, user_interface_agent],
+    tasks=[user_task, query_task],
+    process=Process.sequential,  # Execute tasks sequentially
+    memory=True,
+    cache=True,
+    max_rpm=100,
+    share_crew=False         
+)
+
+# Properly manage threads
+def main():
+    # Define a specific GraphQL query
+    query = """
+    query {
+      launchesPast(limit: 1) {
+        mission_name
+        launch_date_utc
+        launch_site {
+          site_name_long
         }
-        """
-        variables = {"limit": limit}
-        return self.query(query, variables)
+        links {
+          article_link
+          video_link
+        }
+        rocket {
+          rocket_name
+        }
+      }
+    }
+    """
     
+    # Execute the query using the GraphQL tool
+    result = graphql_tool.invoke(query)
+    print(result)
 
-class SpaceXCrew(crewai.Crew):
-    def __init__(self, api_url, headers=None):
-        agents = []
-        tasks = []
-        config = {}  # Optional configuration
+# Kick off the crew and print the result
+try:
+    result = crew.kickoff()
+    print("######################")
+    print(result)
+except Exception as e:
+    print(f"An error occurred: {e}")
 
-        super().__init__(agents=agents, tasks=tasks, config=config)
-        
-        self.launches_agent = LaunchesAgent(api_url, headers)
-        self.add_agent(self.launches_agent)
-
-        # Populate the agents list after adding them
-        self.agents.append(self.launches_agent)
-
-    def get_recent_launches(self, limit=5):
-        task = LaunchesTask(self.launches_agent, limit)
-        self.add_task(task)
-        return task.run()
-
-
-
-if __name__ == "__main__":
-    api_url = "https://api.spacex.land/graphql/"
-    headers = {"Content-Type": "application/json"}
-
-    space_x_crew = SpaceXCrew(api_url, headers)
-
-    # Get recent launches
-    try:
-        recent_launches = space_x_crew.get_recent_launches(limit=5)
-        print("Recent Launches:")
-        for launch in recent_launches['data']['launchesPast']:
-            print(f"Mission: {launch['mission_name']}")
-            print(f"Date: {launch['launch_date_utc']}")
-            print(f"Rocket: {launch['rocket']['rocket_name']}")
-            print(f"Launch Site: {launch['launch_site']['site_name_long']}")
-            print("-----")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+# Access and print the task output
+print(f"Task Output: {task.output}")
