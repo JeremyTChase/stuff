@@ -1,0 +1,6 @@
+{
+  "name": "feedback_analyst",
+  "description": "Analyzes user feedback to improve the system's performance and accuracy over time.",
+  "verbose": true,
+  "allow_delegation": true
+}

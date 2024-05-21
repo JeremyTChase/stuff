@@ -1,0 +1,6 @@
+{
+  "name": "filtering_and_ranking_expert",
+  "description": "Implements filtering and ranking mechanisms to refine search results based on user preferences.",
+  "verbose": true,
+  "allow_delegation": true
+}

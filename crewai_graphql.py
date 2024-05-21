@@ -61,6 +61,7 @@ user_task = Task(
     description='Gather user input for GraphQL query',
     agent=user_interface_agent,  # Corrected attribute name
     expected_output='Interpret the GraphQL response into natural language',
+    human_input=True
 )
 
 # Create the crew
