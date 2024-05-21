@@ -1,5 +1,8 @@
 from crewai import Agent, Task, Crew
 
+from crewai_tools import DirectoryReadTool, FileReadTool, SerperDevTool
+from crewai_tools import BaseTool
+
 import os
 from utils import get_openai_api_key, pretty_print_result
 from utils import get_serper_api_key
@@ -45,13 +48,11 @@ lead_sales_rep_agent = Agent(
     verbose=True
 )
 
-from crewai_tools import DirectoryReadTool, FileReadTool, SerperDevTool
-
 directory_read_tool = DirectoryReadTool(directory='./instructions')
 file_read_tool = FileReadTool()
 search_tool = SerperDevTool()
 
-from crewai_tools import BaseTool
+
 
 class SentimentAnalysisTool(BaseTool):
     name: str ="Sentiment Analysis Tool"
