@@ -12,6 +12,9 @@ llm = Ollama(
 
 # Define the GraphQL endpoint
 url = "https://main--spacex-l4uc6p.apollographos.net/graphql"
+# service_description = "This is the SpaceX GraphQL service that contains interesting information about past flights"
+# service_title = "SpaceX"
+
 
 @tool
 def requestGraphqlQuery(query: str)->str:
@@ -154,30 +157,52 @@ def GetGraphQLSchema()->str:
     return response.json()
 
 myAgent1 = Agent(
-			role="Lead GraphQL Engineer",
+			role="Lead GraphQL Engineer for {service_title}",
 			goal=dedent("""\
 				develop plans based on user input that
                 need graphql query support
                """),
 			backstory=dedent("""\
 				Lead GraphQL engineer with 20 years experience in developing
-                    GraphQL services"""),
+                    GraphQL services
+                    {service_description}
+                    """),
 			tools=[
 					GetGraphQLSchema
 			],
+            cache = True,
 			allow_delegation=False,
 			llm=llm,
 			verbose=True
 		)
 
 myAgent2 = Agent(
-			role="Lead GraphQL Query Engineer",
+			role="Lead GraphQL Query Engineer for {service_title}",
 			goal=dedent("""\
-				develops interesting queries based on the GraphQL schema in line with its main proposition 
+				develops a graphql query to satisy for the user requst : {user_input}
                """),
 			backstory=dedent("""\
-				Lead GraphQl query engineer with 20 years experience in developing
-                    GraphQL queries"""),
+				Lead GraphQl query engineer with 20 years experience in developing GraphQL queries
+                    {service_description}
+                    """),
+			tools=[
+					requestGraphqlQuery
+			],
+            cache = True,
+			allow_delegation=False,
+			llm=llm,
+			verbose=True
+		)
+
+myAgent3 = Agent(
+			role="Concierge for the {service_title} GraphQL service",
+			goal=dedent("""\
+				Works with the user to answer there query: {user_input}
+               """),
+			backstory=dedent("""\
+				Helpful assistant to facilitate user needs on the graphql service and return answers
+                    {service_description}
+                """),
 			tools=[
 					requestGraphqlQuery
 			],
@@ -186,41 +211,75 @@ myAgent2 = Agent(
 			verbose=True
 		)
 
-# Task for Data Analyst Agent:
+# Task examine the graphql service (gets schema)
 task1 = Task(
     description=(
-        "Examine the graphQL service"
+        "Examine the {service_title} graphQL service"
         "Use discovery techniques to discover the available queries for the GraphQL service"
-        "identify trends and predict market movements."
     ),
     expected_output=(
         "An explanation of the main functions the GraphQL service provides"
         "and some examples that are inline with what the service offers {url}."
     ),
     agent=myAgent1,
+    #context = [task2, task3],
+    tools = [requestGraphqlQuery],
+    human_input = True
 )
 
-# Task for Data Analyst Agent:
-task2 = Task(
+
+
+# works with the user to understand there needs and query the service
+task3 = Task(
     description=(
-        "Examine the graphQL service"
-        "Use discovery techniques to discover the available queries for the GraphQL service"
-        "identify trends and predict market movements."
+        "Understand the users request for {service_title}"
+        "Identify possible GraphQL queries that may satisify the users needs"
     ),
     expected_output=(
-        "list of graphql queries and their related input and outputs"
-        "plus a brief descrption for each of the queries {url}."
+        "Take the response form the GraphQL service and present it natural language"
+        #"include the raw response formatted {url}."
+    ),
+    agent=myAgent3,
+    #context = [task1],
+    tools = [requestGraphqlQuery],
+    human_input = True
+)
+
+# trys different queries
+task2 = Task(
+    description=(
+        "Examine the {service_title} graphQL service"
+        "Use discovery techniques to discover the available queries that will answer the users query"
+    ),
+    expected_output=(
+        "An answer to the users query"
+        #"list of graphql queries and their related input and outputs"
+        #"plus a brief descrption for each of the queries {url}."
     ),
     agent=myAgent2,
+    context = [
+        #task1,
+        task3
+        ],
+    tools = [requestGraphqlQuery],
+    human_input = True
 )
 
 graphql_crew = Crew(
-    agents=[myAgent1, myAgent2],
+    agents=[
+        #myAgent1, 
+        myAgent3, 
+        myAgent2
+        ],
     
-    tasks=[task1, task2],
+    tasks=[
+        #task1,
+        task2,
+        task3
+        ],
     
     manager_llm=llm,
-    process=Process.sequential,
+    process=Process.hierarchical,
     embedder={
         "provider": "huggingface",
         "config": {
@@ -233,9 +292,16 @@ graphql_crew = Crew(
     verbose = 2
 )
 
+print("Please enter your SpaceX query!!")
+user_input = input()
+
 inputs_obj = {
-    "url": " http://docs.catalysis-hub.org/en/latest/tutorials/index.html#graphql"
+    "url": " http://docs.catalysis-hub.org/en/latest/tutorials/index.html#graphql",
+    "service_description": "This is the SpaceX GraphQL service that contains interesting information about past flights",
+    "service_title": "SpaceX",
+    "user_input": user_input
 }
+
 
 
 result = graphql_crew.kickoff(inputs=inputs_obj)
