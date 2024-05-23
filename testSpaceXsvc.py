@@ -66,7 +66,6 @@ writer = Agent(
 
 # Define the tasks in sequence
 research_task = Task(
-    description='Gather relevant data...',
     expected_output="List possible entites to run queries on",
     agent=graph_analyst_agent)
 

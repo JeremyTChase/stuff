@@ -1,0 +1,163 @@
+{
+  rockets {
+    name
+    description
+    first_flight
+    height {
+      feet
+    }
+    payload_weights {
+      id
+    }
+    country
+    company
+    cost_per_launch
+  }
+}
+
+query Launches {
+  launches {
+    id
+    is_tentative
+    upcoming
+    mission_name
+    links {
+      article_link
+      video_link
+      flickr_images
+      mission_patch
+    }
+    launch_date_utc
+    details
+  }
+}
+
+{
+  missions {
+    id
+    name
+  }
+}
+
+query getLaunchesPast($limit: Int = 2, $withRockets: Boolean = false) {
+  launchesPast(limit: $limit) {
+    mission_name
+    launch_date_local
+    launch_site {
+      site_name_long
+    }
+    rocket @include(if: $withRockets) {
+      rocket_name
+      first_stage {
+        cores {
+          flight
+          core {
+            reuse_count
+            status
+          }
+        }
+      }
+    }
+  }
+}
+
+query Launches($limit: Int) {
+  histories(limit: $limit) {
+    details
+    title
+    event_date_utc
+    id
+  }
+}
+
+{
+  rockets {
+    name
+    description
+    first_flight
+    height {
+      feet
+    }
+    payload_weights {
+      id
+    }
+    country
+    company
+    cost_per_launch
+  }
+}
+
+{
+  rockets {
+    name
+  }
+}
+
+{
+  rockets {
+    name
+    description
+    first_flight
+    height {
+      feet
+    }
+    diameter {
+      feet
+    }
+    mass {
+      kg
+    }
+    stages
+    engines {
+      number
+      type
+      version
+    }
+    payload_weights {
+      id
+      name
+      kg
+    }
+    country
+    company
+    cost_per_launch
+  }
+}
+
+query getRockets($withEngines: Boolean = false) {
+  rockets {
+    name
+    description
+    first_flight
+    height {
+      feet
+    }
+    engines @include(if: $withEngines) {
+      number
+      type
+      version
+    }
+  }
+}
+
+
+{
+  rockets {
+    name
+    description
+    first_flight
+    height {
+      feet
+    }
+    payload_weights {
+      id
+      name
+      kg
+    }
+    engines {
+      number
+      type
+      version
+    }
+  }
+}
