@@ -6,8 +6,33 @@ from langchain_community.llms import Ollama
 from crewai_tools import tool
 
 llm = Ollama(
-    model="mistral"
+    model="mistral",
+    temperature=0.7
     )
+
+# Define the GraphQL endpoint
+url = "https://main--spacex-l4uc6p.apollographos.net/graphql"
+
+@tool
+def requestGraphqlQuery(query: str)->str:
+    """useful for query the graphql service"""
+    # Define the headers
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    # Define the payload
+    payload = {
+        "query": query
+    }
+
+    # Make the request
+    response = requests.post(url, json=payload, headers=headers)
+
+    # Print the response
+    #print(response.json())
+    return response.json()
+
 
 @tool
 def GetGraphQLSchema()->str:
@@ -23,11 +48,7 @@ def GetGraphQLSchema()->str:
                     }
                 }
             }"""
-            
-
-        # Define the GraphQL endpoint
-    url = "https://main--spacex-l4uc6p.apollographos.net/graphql"
-
+    
     # Define the introspection query
     introspection_query = """
     {
@@ -129,7 +150,7 @@ def GetGraphQLSchema()->str:
     response = requests.post(url, json=payload, headers=headers)
 
     # Print the response
-    print(response.json())
+    #print(response.json())
     return response.json()
 
 myAgent1 = Agent(
@@ -149,34 +170,65 @@ myAgent1 = Agent(
 			verbose=True
 		)
 
+myAgent2 = Agent(
+			role="Lead GraphQL Query Engineer",
+			goal=dedent("""\
+				develops interesting queries based on the GraphQL schema in line with its main proposition 
+               """),
+			backstory=dedent("""\
+				Lead GraphQl query engineer with 20 years experience in developing
+                    GraphQL queries"""),
+			tools=[
+					requestGraphqlQuery
+			],
+			allow_delegation=False,
+			llm=llm,
+			verbose=True
+		)
+
 # Task for Data Analyst Agent:
-GraphQLServiceAnalysis = Task(
+task1 = Task(
     description=(
         "Examine the graphQL service"
         "Use discovery techniques to discover the available queries for the GraphQL service"
         "identify trends and predict market movements."
     ),
     expected_output=(
-        "Table of queries and their related input and outputs"
-        "plus a brief descrption for the following service {url}."
+        "An explanation of the main functions the GraphQL service provides"
+        "and some examples that are inline with what the service offers {url}."
     ),
     agent=myAgent1,
 )
 
+# Task for Data Analyst Agent:
+task2 = Task(
+    description=(
+        "Examine the graphQL service"
+        "Use discovery techniques to discover the available queries for the GraphQL service"
+        "identify trends and predict market movements."
+    ),
+    expected_output=(
+        "list of graphql queries and their related input and outputs"
+        "plus a brief descrption for each of the queries {url}."
+    ),
+    agent=myAgent2,
+)
+
 graphql_crew = Crew(
-    agents=[myAgent1],
+    agents=[myAgent1, myAgent2],
     
-    tasks=[GraphQLServiceAnalysis],
+    tasks=[task1, task2],
     
     manager_llm=llm,
     process=Process.sequential,
-    # embedder={
-    #     "provider": "huggingface",
-    #     "config": {
-    #         "model": "mixedbread-ai/mxbai-embed-large-v1",  # Example model from HuggingFace
-    #       }
-    #     },
-    memory=False,
+    embedder={
+        "provider": "huggingface",
+        "config": {
+            "model": "mixedbread-ai/mxbai-embed-large-v1",  # Example model from HuggingFace
+          }
+        },
+    cache=True,
+    memory=True,
     output_log_file="graphqlAgentlog.txt",
     verbose = 2
 )
