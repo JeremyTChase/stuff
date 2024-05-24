@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore")
+
 import os
 import requests
 from textwrap import dedent
@@ -8,10 +11,15 @@ from crewai_tools import tool, PDFSearchTool
 # Set your API keys
 #os.environ["OPENAI_API_KEY"] = "sk-xxx"
 
+# Define the GraphQL endpoint
+url = "https://main--spacex-l4uc6p.apollographos.net/graphql"
+
 llm = Ollama(
     #model="llama3:8b",
     model="mistral:latest",
-    temperature=0.5
+    # model="phi3:mini",
+    #model = "smangrul/llama-3-8b-instruct-function-calling",
+    temperature=0.7
     )
 
 spaceXSchema = PDFSearchTool(
@@ -20,6 +28,8 @@ spaceXSchema = PDFSearchTool(
         llm=dict(
             provider="ollama", # or google, openai, anthropic, llama2, ...
             config=dict(
+                #model = "smangrul/llama-3-8b-instruct-function-calling",
+                #model="phi3:mini",
                 model="mistral:latest",
                 # temperature=0.5,
                 # top_p=1,
@@ -43,6 +53,7 @@ spaceXExampleQuery = PDFSearchTool(
         llm=dict(
             provider="ollama", # or google, openai, anthropic, llama2, ...
             config=dict(
+                #model = "smangrul/llama-3-8b-instruct-function-calling",
                 model="mistral:latest",
                 # temperature=0.5,
                 # top_p=1,
@@ -60,61 +71,9 @@ spaceXExampleQuery = PDFSearchTool(
     )    
 )
 
-# spaceXSchema = PDFSearchTool(pdf='./spacex/spacexSchema.pdf')
-# spaceXExampleQuery = pdfSearchTool(pdf='./spacex/spacexExampleQueries.pdf')
-
-# Define the GraphQL endpoint
-url = "https://main--spacex-l4uc6p.apollographos.net/graphql"
-
-
-# Example: Loading from a file
-# spaceXSchema = RagTool(    
-#     config=dict(
-#         llm=dict(
-#             provider="ollama", # or google, openai, anthropic, llama2, ...
-#             config=dict(
-#                 model="mistral:latest",
-#                 # temperature=0.5,
-#                 # top_p=1,
-#                 # stream=true,
-#             ),
-#         ),
-#         embedder=dict(
-#             provider="huggingface",
-#             config=dict(
-#                 model="mixedbread-ai/mxbai-embed-large-v1",
-#                 #task_type="retrieval_document",
-#                 # title="Embeddings",
-#             ),
-#         ),
-#     )
-#     ).parse_file('./spaceXgraphQLSchema.gql')
-
-# spaceXExampleQuery = RagTool(    
-#     config=dict(
-#         llm=dict(
-#             provider="ollama", # or google, openai, anthropic, llama2, ...
-#             config=dict(
-#                 model="mistral:latest",
-#                 # temperature=0.5,
-#                 # top_p=1,
-#                 # stream=true,
-#             ),
-#         ),
-#         embedder=dict(
-#             provider="huggingface",
-#             config=dict(
-#                 model="mixedbread-ai/mxbai-embed-large-v1",
-#                 #task_type="retrieval_document",
-#                 # title="Embeddings",
-#             ),
-#         ),
-#     )
-#     ).validate.model_validate(spaceXExampleQueryTxt)
-
 @tool
 def requestGraphqlQuery(query: str)->str:
-    """useful for query the graphql service"""
+    """useful to query the graphql service"""
     # Define the headers
     headers = {
         "Content-Type": "application/json"
@@ -131,113 +90,6 @@ def requestGraphqlQuery(query: str)->str:
     return response.json()
 
 
-# @tool
-# def GetGraphQLSchema()->str:
-   
-#     # Define the introspection query
-#     introspection_query = """
-#     {
-#     __schema {
-#         queryType {
-#         name
-#         }
-#         mutationType {
-#         name
-#         }
-#         subscriptionType {
-#         name
-#         }
-#         types {
-#         ...FullType
-#         }
-#         directives {
-#         name
-#         description
-#         locations
-#         args {
-#             ...InputValue
-#         }
-#         }
-#     }
-#     }
-
-#     fragment FullType on __Type {
-#     kind
-#     name
-#     description
-#     fields(includeDeprecated: true) {
-#         name
-#         description
-#         args {
-#         ...InputValue
-#         }
-#         type {
-#         ...TypeRef
-#         }
-#         isDeprecated
-#         deprecationReason
-#     }
-#     inputFields {
-#         ...InputValue
-#     }
-#     interfaces {
-#         ...TypeRef
-#     }
-#     enumValues(includeDeprecated: true) {
-#         name
-#         description
-#         isDeprecated
-#         deprecationReason
-#     }
-#     possibleTypes {
-#         ...TypeRef
-#     }
-#     }
-
-#     fragment InputValue on __InputValue {
-#     name
-#     description
-#     type {
-#         ...TypeRef
-#     }
-#     defaultValue
-#     }
-
-#     fragment TypeRef on __Type {
-#     kind
-#     name
-#     ofType {
-#         kind
-#         name
-#         ofType {
-#         kind
-#         name
-#         ofType {
-#             kind
-#             name
-#         }
-#         }
-#     }
-#     }
-#     """
-
-#     # Define the headers
-#     headers = {
-#         "Content-Type": "application/json"
-#     }
-
-#     # Define the payload
-#     payload = {
-#         "query": introspection_query
-#     }
-
-#     # Make the request
-#     response = requests.post(url, json=payload, headers=headers)
-
-#     # Print the response
-#     #print(response.json())
-#     return response.json()
-
 myAgent1 = Agent(
 			role="Lead GraphQL Engineer for {service_title}",
 			goal=dedent("""\
@@ -249,9 +101,7 @@ myAgent1 = Agent(
                     {service_description}
                     """),
 			tools=[
-					requestGraphqlQuery,
-                    spaceXSchema,
-                    spaceXExampleQuery
+                    spaceXSchema
 			],
             cache = True,
 			allow_delegation=False,
@@ -289,9 +139,9 @@ myAgent3 = Agent(
                     {service_description}
                 """),
 			tools=[
-					requestGraphqlQuery,
-                    spaceXSchema,
-                    spaceXExampleQuery
+					# requestGraphqlQuery,
+                    # spaceXSchema,
+                    # spaceXExampleQuery
 			],
 			allow_delegation=False,
 			llm=llm,
@@ -312,10 +162,8 @@ task1 = Task(
     #context = [task2, task3],
     tools = [
         requestGraphqlQuery,
-        spaceXSchema,
-        spaceXExampleQuery
         ],
-    human_input = True
+    human_input = False
 )
 
 
@@ -331,13 +179,13 @@ task3 = Task(
         #"include the raw response formatted {url}."
     ),
     agent=myAgent3,
-    context = [task1],
+    #context = [task1],
     tools = [
         requestGraphqlQuery,
-        spaceXSchema,
-        spaceXExampleQuery
+        # spaceXSchema,
+        # spaceXExampleQuery
         ],
-    human_input = True
+    human_input = False
 )
 
 # trys different queries
@@ -353,26 +201,27 @@ task2 = Task(
         #"plus a brief descrption for each of the queries {url}."
     ),
     agent=myAgent2,
-    context = [
-        task1,
-        task3
-        ],
+    # context = [
+    #     task1,
+    #     task3
+    #     ],
     tools = [
-        spaceXSchema,
-        spaceXExampleQuery
+        requestGraphqlQuery,
+        # spaceXSchema,
+        # spaceXExampleQuery
         ],
     human_input = True
 )
 
 graphql_crew = Crew(
     agents=[
-        myAgent1, 
+       # myAgent1, 
         myAgent2, 
         myAgent3
         ],
     
     tasks=[
-        task1,
+       # task1,
         task2,
         task3
         ],
@@ -396,7 +245,7 @@ print("Please enter your SpaceX query!!")
 user_input = input()
 
 inputs_obj = {
-    "url": " http://docs.catalysis-hub.org/en/latest/tutorials/index.html#graphql",
+    "url": url,
     "service_description": "This is the SpaceX GraphQL service that contains interesting information about past flights",
     "service_title": "SpaceX",
     "user_input": user_input
