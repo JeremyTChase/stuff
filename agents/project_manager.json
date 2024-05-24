@@ -1,7 +1,0 @@
-{
-  "name": "project_manager",
-  "description": "Oversees the entire project, aggregates work from other agents, and ensures a robust solution.",
-  "verbose": true,
-  "allow_delegation": true,
-  "human_input": true
-}

@@ -3,13 +3,10 @@ import requests
 from textwrap import dedent
 from crewai import Crew, Agent, Task, Process 
 from langchain_community.llms import Ollama
-from crewai_tools import tool, RagTool, FileReadTool, WebsiteSearchTool
-
-
-
+from crewai_tools import tool, PDFSearchTool
 
 # Set your API keys
-os.environ["OPENAI_API_KEY"] = "sk-xxx"
+#os.environ["OPENAI_API_KEY"] = "sk-xxx"
 
 llm = Ollama(
     #model="llama3:8b",
@@ -17,57 +14,103 @@ llm = Ollama(
     temperature=0.5
     )
 
-spaceXSchemaTxt = FileReadTool(file_path='./spaceXgraphQLSchema.gql')
-spaceXExampleQueryTxt = FileReadTool(file_path='./spaceXExampleQueries.txt')
+spaceXSchema = PDFSearchTool(
+    pdf='./spacex/spacexSchema.pdf',
+    config=dict(
+        llm=dict(
+            provider="ollama", # or google, openai, anthropic, llama2, ...
+            config=dict(
+                model="mistral:latest",
+                # temperature=0.5,
+                # top_p=1,
+                # stream=true,
+            ),
+        ),
+        embedder=dict(
+            provider="huggingface",
+            config=dict(
+                model="mixedbread-ai/mxbai-embed-large-v1",
+                #task_type="retrieval_document",
+                # title="Embeddings",
+            ),
+        ),
+    )    
+)
+
+spaceXExampleQuery = PDFSearchTool(
+    pdf='./spacex/spacexExampleQueries.pdf',
+    config=dict(
+        llm=dict(
+            provider="ollama", # or google, openai, anthropic, llama2, ...
+            config=dict(
+                model="mistral:latest",
+                # temperature=0.5,
+                # top_p=1,
+                # stream=true,
+            ),
+        ),
+        embedder=dict(
+            provider="huggingface",
+            config=dict(
+                model="mixedbread-ai/mxbai-embed-large-v1",
+                #task_type="retrieval_document",
+                # title="Embeddings",
+            ),
+        ),
+    )    
+)
+
+# spaceXSchema = PDFSearchTool(pdf='./spacex/spacexSchema.pdf')
+# spaceXExampleQuery = pdfSearchTool(pdf='./spacex/spacexExampleQueries.pdf')
 
 # Define the GraphQL endpoint
 url = "https://main--spacex-l4uc6p.apollographos.net/graphql"
 
 
 # Example: Loading from a file
-spaceXSchema = RagTool(    
-    config=dict(
-        llm=dict(
-            provider="ollama", # or google, openai, anthropic, llama2, ...
-            config=dict(
-                model="mistral:latest",
-                # temperature=0.5,
-                # top_p=1,
-                # stream=true,
-            ),
-        ),
-        embedder=dict(
-            provider="huggingface",
-            config=dict(
-                model="mixedbread-ai/mxbai-embed-large-v1",
-                #task_type="retrieval_document",
-                # title="Embeddings",
-            ),
-        ),
-    )
-    ).adapter.model_validate(spaceXSchemaTxt)
+# spaceXSchema = RagTool(    
+#     config=dict(
+#         llm=dict(
+#             provider="ollama", # or google, openai, anthropic, llama2, ...
+#             config=dict(
+#                 model="mistral:latest",
+#                 # temperature=0.5,
+#                 # top_p=1,
+#                 # stream=true,
+#             ),
+#         ),
+#         embedder=dict(
+#             provider="huggingface",
+#             config=dict(
+#                 model="mixedbread-ai/mxbai-embed-large-v1",
+#                 #task_type="retrieval_document",
+#                 # title="Embeddings",
+#             ),
+#         ),
+#     )
+#     ).parse_file('./spaceXgraphQLSchema.gql')
 
-spaceXExampleQuery = RagTool(    
-    config=dict(
-        llm=dict(
-            provider="ollama", # or google, openai, anthropic, llama2, ...
-            config=dict(
-                model="mistral:latest",
-                # temperature=0.5,
-                # top_p=1,
-                # stream=true,
-            ),
-        ),
-        embedder=dict(
-            provider="huggingface",
-            config=dict(
-                model="mixedbread-ai/mxbai-embed-large-v1",
-                #task_type="retrieval_document",
-                # title="Embeddings",
-            ),
-        ),
-    )
-    ).validate.model_validate(spaceXExampleQueryTxt)
+# spaceXExampleQuery = RagTool(    
+#     config=dict(
+#         llm=dict(
+#             provider="ollama", # or google, openai, anthropic, llama2, ...
+#             config=dict(
+#                 model="mistral:latest",
+#                 # temperature=0.5,
+#                 # top_p=1,
+#                 # stream=true,
+#             ),
+#         ),
+#         embedder=dict(
+#             provider="huggingface",
+#             config=dict(
+#                 model="mixedbread-ai/mxbai-embed-large-v1",
+#                 #task_type="retrieval_document",
+#                 # title="Embeddings",
+#             ),
+#         ),
+#     )
+#     ).validate.model_validate(spaceXExampleQueryTxt)
 
 @tool
 def requestGraphqlQuery(query: str)->str:
@@ -207,7 +250,8 @@ myAgent1 = Agent(
                     """),
 			tools=[
 					requestGraphqlQuery,
-                    spaceXSchema
+                    spaceXSchema,
+                    spaceXExampleQuery
 			],
             cache = True,
 			allow_delegation=False,
@@ -246,7 +290,8 @@ myAgent3 = Agent(
                 """),
 			tools=[
 					requestGraphqlQuery,
-                    spaceXSchema
+                    spaceXSchema,
+                    spaceXExampleQuery
 			],
 			allow_delegation=False,
 			llm=llm,
@@ -267,7 +312,8 @@ task1 = Task(
     #context = [task2, task3],
     tools = [
         requestGraphqlQuery,
-        spaceXSchema
+        spaceXSchema,
+        spaceXExampleQuery
         ],
     human_input = True
 )
@@ -288,7 +334,8 @@ task3 = Task(
     context = [task1],
     tools = [
         requestGraphqlQuery,
-        spaceXSchema
+        spaceXSchema,
+        spaceXExampleQuery
         ],
     human_input = True
 )
@@ -311,8 +358,8 @@ task2 = Task(
         task3
         ],
     tools = [
-        requestGraphqlQuery,
-        spaceXSchema
+        spaceXSchema,
+        spaceXExampleQuery
         ],
     human_input = True
 )

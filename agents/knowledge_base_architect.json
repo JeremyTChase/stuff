@@ -1,6 +1,0 @@
-{
-  "name": "knowledge_base_architect",
-  "description": "Designs and implements the knowledge base data structure and indexing mechanism.",
-  "verbose": true,
-  "allow_delegation": true
-}

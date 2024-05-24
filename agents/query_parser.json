@@ -1,6 +1,0 @@
-{
-  "name": "query_parser",
-  "description": "Analyzes and interprets user queries, identifying keywords, phrases, and search operators.",
-  "verbose": true,
-  "allow_delegation": true
-}
